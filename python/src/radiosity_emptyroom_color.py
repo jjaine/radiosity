@@ -1,6 +1,10 @@
 import numpy as np
 import scipy.sparse.linalg as spla
+import scipy.stats
 import time
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # For printing, set precision and suppress scientific notation
 np.set_printoptions(precision=4, suppress=True)
@@ -74,6 +78,126 @@ for i in range(0, n**2):
 # Solve for color vector.
 print("Solving radiosity equation...")
 start = time.time()
-colorvec_orig = spla.gmres(np.eye(6 * n**2) - np.tile(rho, [1, 6 * n**2]) * F, Evec)
+colorvec_orig = spla.gmres(np.eye(6 * n**2) - np.tile(rho, [1, 6 * n**2]) * F, Evec)[0]
 end = time.time()
 print("Radiosity equation solved in", end-start, "seconds")
+
+
+# Produce a still image of the scene
+
+# Adjust the dark shades and normalize the values of the color vector 
+# between 0 and 1.
+colorvec = [i - threshold for i in colorvec_orig]
+colorvec = [max(0, i) for i in colorvec]
+colorvec = colorvec / max(colorvec)
+
+# Sigmoid correction for optimal gray levels.
+colorvec = scipy.stats.beta.cdf(colorvec, betapar1, betapar2)
+
+
+# Construct color matrix 
+colorvecR = list(colorvec)
+colorvecR[0:n**2] = np.power(colorvecR[0:n**2],0.8) # Back wall
+for i in range(0, n**2):
+  colorvecR[3 * n**2 + i] = np.power(colorvecR[3 * n**2 + i], 1.2) # Right wall
+for i in range(0, n**2):
+  colorvecR[4 * n**2 + i] = np.power(colorvecR[4 * n**2 + i], 1.2) # Left wall
+
+colorvecG = list(colorvec)
+colorvecG[0:n**2] = np.power(colorvecG[0:n**2], 1.4) # Back wall
+
+colorvecB = list(colorvec)
+colorvecB[0:n**2] = np.power(colorvecB[0:n**2], 1.4) # Back wall
+for i in range(0, n**2):
+  colorvecB[3 * n**2 + i] = np.power(colorvecB[3 * n**2 + i], 0.7) # Right wall
+for i in range(0, n**2):
+  colorvecB[4 * n**2 + i] = np.power(colorvecB[4 * n**2 + i], 0.7) # Left wall
+
+colormat = [colorvecR[:], colorvecG[:], colorvecB[:]]
+
+
+# Create plot
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+
+# Draw all the walls consisting of n x n little squares (pixels).
+# Pick the gray value of each square from the illumination vector
+# calculated by the radiosity method above
+colorind = 0
+
+# The back wall
+for i in range(0, n**2):
+  x = [Xmat[i,0] + d/2, Xmat[i,0] + d/2, Xmat[i,0] - d/2, Xmat[i,0] - d/2]
+  y = [Ymat[i,0], Ymat[i,0], Ymat[i,0], Ymat[i,0]]
+  z = [Zmat[i,0] - d/2, Zmat[i,0] + d/2, Zmat[i,0] + d/2, Zmat[i,0] - d/2]
+  verts = [list(zip(x,y,z))]
+  pc = Poly3DCollection(verts)
+  color = (colormat[0][colorind], colormat[1][colorind], colormat[2][colorind])
+  pc.set_facecolor(color)
+  pc.set_edgecolor(color)
+  ax.add_collection3d(pc)
+  colorind += 1
+
+# Roof
+for i in range(0, n**2):
+  x = [Xmat[i,1] + d/2, Xmat[i,1] + d/2, Xmat[i,1] - d/2, Xmat[i,1] - d/2]
+  y = [Ymat[i,1] - d/2, Ymat[i,1] + d/2, Ymat[i,1] + d/2, Ymat[i,1] - d/2]
+  z = [Zmat[i,1], Zmat[i,1], Zmat[i,1], Zmat[i,1]]
+  verts = [list(zip(x,y,z))]
+  pc = Poly3DCollection(verts)
+  color = (colormat[0][colorind], colormat[1][colorind], colormat[2][colorind])
+  pc.set_facecolor(color)
+  pc.set_edgecolor(color)
+  ax.add_collection3d(pc)
+  colorind += 1
+
+# Floor
+for i in range(0, n**2):
+  x = [Xmat[i,2] + d/2, Xmat[i,2] + d/2, Xmat[i,2] - d/2, Xmat[i,2] - d/2]
+  y = [Ymat[i,2] - d/2, Ymat[i,2] + d/2, Ymat[i,2] + d/2, Ymat[i,2] - d/2]
+  z = [Zmat[i,2], Zmat[i,2], Zmat[i,2], Zmat[i,2]]
+  verts = [list(zip(x,y,z))]
+  pc = Poly3DCollection(verts)
+  color = (colormat[0][colorind], colormat[1][colorind], colormat[2][colorind])
+  pc.set_facecolor(color)
+  pc.set_edgecolor(color)
+  ax.add_collection3d(pc)
+  colorind += 1
+
+# Right-hand-side wall
+for i in range(0, n**2):
+  x = [Xmat[i,3], Xmat[i,3], Xmat[i,3], Xmat[i,3]]
+  y = [Ymat[i,3] + d/2, Ymat[i,3] + d/2, Ymat[i,3] - d/2, Ymat[i,3] - d/2]
+  z = [Zmat[i,3] - d/2, Zmat[i,3] + d/2, Zmat[i,3] + d/2, Zmat[i,3] - d/2]
+  verts = [list(zip(x,y,z))]
+  pc = Poly3DCollection(verts)
+  color = (colormat[0][colorind], colormat[1][colorind], colormat[2][colorind])
+  pc.set_facecolor(color)
+  pc.set_edgecolor(color)
+  ax.add_collection3d(pc)
+  colorind += 1
+
+# Left-hand-side wall
+for i in range(0, n**2):
+  x = [Xmat[i,4], Xmat[i,4], Xmat[i,4], Xmat[i,4]]
+  y = [Ymat[i,4] + d/2, Ymat[i,4] + d/2, Ymat[i,4] - d/2, Ymat[i,4] - d/2]
+  z = [Zmat[i,4] - d/2, Zmat[i,4] + d/2, Zmat[i,4] + d/2, Zmat[i,4] - d/2]
+  verts = [list(zip(x,y,z))]
+  pc = Poly3DCollection(verts)
+  color = (colormat[0][colorind], colormat[1][colorind], colormat[2][colorind])
+  pc.set_facecolor(color)
+  pc.set_edgecolor(color)
+  ax.add_collection3d(pc)
+  colorind += 1
+
+# Set coordinate limits
+plt.xlim([-2, 2])
+plt.ylim([0, 1])
+ax.set_zlim(-1.5,1.5)
+
+# TODO: find good values, calculate from campos, camtar & camang?
+ax.view_init(elev=0, azim=-90)
+
+plt.axis('off')
+
+plt.show()
