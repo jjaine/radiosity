@@ -2,8 +2,9 @@ import numpy as np
 import scipy.sparse.linalg as spla
 import scipy.stats
 import time
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import Axes3D, axes3d
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # For printing, set precision and suppress scientific notation
@@ -117,7 +118,7 @@ colormat = [colorvecR[:], colorvecG[:], colorvecB[:]]
 
 
 # Create plot
-fig = plt.figure()
+fig = plt.figure(figsize=(6, 6), dpi=100)
 ax = fig.add_subplot(projection='3d')
 
 # Draw all the walls consisting of n x n little squares (pixels).
@@ -191,12 +192,12 @@ for i in range(0, n**2):
   colorind += 1
 
 # Set coordinate limits
-plt.xlim([-2, 2])
-plt.ylim([0, 1])
-ax.set_zlim(-1.5,1.5)
+plt.xlim([-1.5, 1.5])
+plt.ylim([0.5, 1])
+ax.set_zlim(-1.5,1)
 
 # TODO: find good values, calculate from campos, camtar & camang?
-ax.view_init(elev=0, azim=-90)
+ax.view_init(elev=1, azim=-89)
 
 plt.axis('off')
 
