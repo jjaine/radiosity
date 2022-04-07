@@ -38,14 +38,6 @@ threshold = 0.05
 betapar1 = 1
 betapar2 = 20
 
-# Camera settings. The camera is located at vector "campos", it is pointed
-# towards "camtar", and the view angle is "camang". A larger "camang" value
-# will give a more "wide-angle lens", so more of the scene is seen in the
-# image. 
-campos = [.2, -2.3, -.30]
-camtar = [0, 0, 0]
-camang = 70
-
 # Construct the color vector (B-vector) using the radiosity lighting model.
 
 # Construct the right hand side Evec of the radiosity equation. Evec
@@ -175,11 +167,12 @@ for i in range(0, n**2):
   colorind += 1
 
 # Set coordinate limits
-plt.xlim([-1.5, 1.5])
-plt.ylim([0.5, 1])
-ax.set_zlim(-1.5,1)
+plt.xlim([-1, 1])
+plt.ylim([-1, 1])
+ax.set_zlim(-1,1)
 
-# TODO: find good values, calculate from campos, camtar & camang?
+# Set the view angle
+#ax.set_proj_type('persp', 0.25) # Not available in matplotlib < 3.6
 ax.view_init(elev=1, azim=-89)
 
 plt.axis('off')
