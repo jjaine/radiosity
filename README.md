@@ -22,9 +22,16 @@ Python code for solving the radiosity equation for lighting in computer graphics
 
 The code is converted to Python from the aforementioned Matlab code. 
 
-Prerequisites: Python3
+Prerequisites: Python3, Matplotlib, SciPy
 
-Before running any of the examples, activate the Python virtual environment with `source python/radiosity_env/bin/activate`. Then go to the sources folder with `cd python/src`.
+Installing prerequisites:
+* create a Python virtual environment with `python3 -m venv radiosity_env`,
+* activate the Python virtual environment with `source python/radiosity_env/bin/activate`,
+* install Matplotlib `pip3 install matplotlib`,
+* install SciPy `pip3 install scipy`, 
+* (optional) patch Matplotlib with [PR#22046](https://github.com/matplotlib/matplotlib/pull/22046), for example by adding the changes by hand to the files in `radiosity_env/lib/python*/site-packages/`.
+
+Then go to the sources folder with `cd python/src` for examples.
 
 1. Simplest example: empty room.
 
