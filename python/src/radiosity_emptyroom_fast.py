@@ -78,224 +78,67 @@ epsilon = 10 ** -8
 
 start = time.time()
 
-# From the roof (j) to the back wall (i)
-for i in range(0, n*n):
-  for j in range(0, n*n):
-    # Centerpoint of the current pixel in the back wall
-    pi = [Xmat[i, 0], Ymat[i, 0], Zmat[i, 0]]
-    # Centerpoint of the current pixel in the roof
-    pj = [Xmat[j, 1], Ymat[j, 1], Zmat[j, 1]]
-    # Distance between the points
-    difvec0 = [i-j for i, j in zip(pi, pj)]
-    r0 = np.linalg.norm(difvec0)
+# Roof & floor, z vakio, indeksit 0 ja 1
+# => 1 & 2
+# LHW & RHW, x vakio, indeksit 1 ja 2
+# => 3 & 4
+# Front & back, y vakio, indeksit 0 ja 2
+# => 0 & 5
 
-    # Check if the two pixels share an edge
-    if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
-      # Calculate element of F analytically
-      F[i, n**2 + j] = shared_edge_F
-    else: # Edge not shared: integrate for F using quadrature
-      # Initalize matrix of integrand values at quadrature points
-      intgndmat = np.zeros((qn**2, qn**2))
-      # Double loop over four-dimensional quadrature
-      for k in range(0, qn**2):
-        for l in range(0, qn**2):
-          # Quadrature point in the back wall pixel
-          qpi = pi[:]
-          qpi[0] += q1[k%qn][k//qn]
-          qpi[2] += q2[k%qn][k//qn]
-          # Quadrature point in the roof pixel
-          qpj = pj[:]
-          qpj[0] += q1[l%qn][l//qn]
-          qpj[1] += q2[l%qn][l//qn]
-          # Vector connecting the quadrature points
-          difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
-          r = np.linalg.norm(difvec)
-          tmp2 = difvec / r # Unit direction vector
-          cos_i = abs(tmp2[1])
-          cos_j = abs(tmp2[2])
-          # Evaluate integrand
-          intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
+# From everywhere (j) to the back wall (i)
+for e in range(1, 6):
+    for i in range(0, n*n):
+        for j in range(0, n*n):
+            # Centerpoint of the current pixel in the back wall
+            pi = [Xmat[i, 0], Ymat[i, 0], Zmat[i, 0]]
+            # Centerpoint of the current pixel in the other
+            pj = [Xmat[j, e], Ymat[j, e], Zmat[j, e]]
+            # Distance between the points
+            difvec0 = [i-j for i, j in zip(pi, pj)]
+            r0 = np.linalg.norm(difvec0)
 
-      # Calculate element of F
-      viewfactor = qw * sum(sum(intgndmat)) / d**2
-      F[i, n**2 + j] = viewfactor
+            # Check if the two pixels share an edge
+            if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
+                # Calculate element of F analytically
+                F[i, e * n**2 + j] = shared_edge_F
+            else: # Edge not shared: integrate for F using quadrature
+                # Initalize matrix of integrand values at quadrature points
+                intgndmat = np.zeros((qn**2, qn**2))
+                # Double loop over four-dimensional quadrature
+                for k in range(0, qn**2):
+                    for l in range(0, qn**2):
+                        # Quadrature point in the back wall pixel
+                        qpi = pi[:]
+                        qpi[0] += q1[k%qn][k//qn]
+                        qpi[2] += q2[k%qn][k//qn]
+                        # Quadrature point in the other pixel
+                        qpj = pj[:]
+                        i1 = 0
+                        i2 = 1
+                        if e > 2 and e < 5:
+                            i1 = 1
+                            i2 = 2
+                        if e > 4:
+                            i2 = 2
+                        qpj[i1] += q1[l%qn][l//qn]
+                        qpj[i2] += q2[l%qn][l//qn]
+                        # Vector connecting the quadrature points
+                        difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
+                        r = np.linalg.norm(difvec)
+                        tmp2 = difvec / r # Unit direction vector
+                        cos_i = abs(tmp2[1]) # TODO: FIXME
+                        cos_j = abs(tmp2[2]) # TODO: FIXME
+                        # Evaluate integrand
+                        intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
+
+                # Calculate element of F
+                viewfactor = qw * sum(sum(intgndmat)) / d**2
+                F[i, e * n**2 + j] = viewfactor
 
 print("Geometric view factors roof->back done (1/15)")
-
-# From the floor (j) to the back wall (i)
-for i in range(0, n*n):
-  for j in range(0, n*n):
-    # Centerpoint of the current pixel in the back wall
-    pi = [Xmat[i, 0], Ymat[i, 0], Zmat[i, 0]]
-    # Centerpoint of the current pixel in the floor
-    pj = [Xmat[j, 2], Ymat[j, 2], Zmat[j, 2]]
-    # Distance between the points
-    difvec0 = [i-j for i, j in zip(pi, pj)]
-    r0 = np.linalg.norm(difvec0)
-
-    # Check if the two pixels share an edge
-    if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
-      # Calculate element of F analytically
-      F[i, 2 * n**2 + j] = shared_edge_F
-    else: # Edge not shared: integrate for F using quadrature
-      # Initalize matrix of integrand values at quadrature points
-      intgndmat = np.zeros((qn**2, qn**2))
-      # Double loop over four-dimensional quadrature
-      for k in range(0, qn**2):
-        for l in range(0, qn**2):
-          # Quadrature point in the back wall pixel
-          qpi = pi[:]
-          qpi[0] += q1[k%qn][k//qn]
-          qpi[2] += q2[k%qn][k//qn]
-          # Quadrature point in the floor pixel
-          qpj = pj[:]
-          qpj[0] += q1[l%qn][l//qn]
-          qpj[1] += q2[l%qn][l//qn]
-          # Vector connecting the quadrature points
-          difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
-          r = np.linalg.norm(difvec)
-          tmp2 = difvec / r # Unit direction vector
-          cos_i = abs(tmp2[2])
-          cos_j = abs(tmp2[1])
-          # Evaluate integrand
-          intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
-
-      # Calculate element of F
-      viewfactor = qw * sum(sum(intgndmat)) / d**2
-      F[i, 2 * n**2 + j] = viewfactor
-
 print("Geometric view factors floor->back done (2/15)")
-
-# From the right-hand-side wall (j) to the back wall (i)
-for i in range(0, n*n):
-  for j in range(0, n*n):
-    # Centerpoint of the current pixel in the back wall
-    pi = [Xmat[i, 0], Ymat[i, 0], Zmat[i, 0]]
-    # Centerpoint of the current pixel in the right-hand-side wall
-    pj = [Xmat[j, 3], Ymat[j, 3], Zmat[j, 3]]
-    # Distance between the points
-    difvec0 = [i-j for i, j in zip(pi, pj)]
-    r0 = np.linalg.norm(difvec0)
-
-    # Check if the two pixels share an edge
-    if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
-      # Calculate element of F analytically
-      F[i, 3 * n**2 + j] = shared_edge_F
-    else: # Edge not shared: integrate for F using quadrature
-      # Initalize matrix of integrand values at quadrature points
-      intgndmat = np.zeros((qn**2, qn**2))
-      # Double loop over four-dimensional quadrature
-      for k in range(0, qn**2):
-        for l in range(0, qn**2):
-          # Quadrature point in the back wall pixel
-          qpi = pi[:]
-          qpi[0] += q1[k%qn][k//qn]
-          qpi[2] += q2[k%qn][k//qn]
-          # Quadrature point in the right wall pixel
-          qpj = pj[:]
-          qpj[1] += q1[l%qn][l//qn]
-          qpj[2] += q2[l%qn][l//qn]
-          # Vector connecting the quadrature points
-          difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
-          r = np.linalg.norm(difvec)
-          tmp2 = difvec / r # Unit direction vector
-          cos_i = abs(tmp2[0])
-          cos_j = abs(tmp2[1])
-          # Evaluate integrand
-          intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
-          
-      # Calculate element of F
-      viewfactor = qw * sum(sum(intgndmat)) / d**2
-      F[i, 3 * n**2 + j] = viewfactor  
-
 print("Geometric view factors right->back done (3/15)")
-
-# From the left-hand-side wall (j) to the back wall (i)
-for i in range(0, n*n):
-  for j in range(0, n*n):
-    # Centerpoint of the current pixel in the back wall
-    pi = [Xmat[i, 0], Ymat[i, 0], Zmat[i, 0]]
-    # Centerpoint of the current pixel in the left-hand-side wall
-    pj = [Xmat[j, 4], Ymat[j, 4], Zmat[j, 4]]
-    # Distance between the points
-    difvec0 = [i-j for i, j in zip(pi, pj)]
-    r0 = np.linalg.norm(difvec0)
-
-    # Check if the two pixels share an edge
-    if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
-      # Calculate element of F analytically
-      F[i, 4 * n**2 + j] = shared_edge_F
-    else: # Edge not shared: integrate for F using quadrature
-      # Initalize matrix of integrand values at quadrature points
-      intgndmat = np.zeros((qn**2, qn**2))
-      # Double loop over four-dimensional quadrature
-      for k in range(0, qn**2):
-        for l in range(0, qn**2):
-          # Quadrature point in the back wall pixel
-          qpi = pi[:]
-          qpi[0] += q1[k%qn][k//qn]
-          qpi[2] += q2[k%qn][k//qn]
-          # Quadrature point in the left wall pixel
-          qpj = pj[:]
-          qpj[1] += q1[l%qn][l//qn]
-          qpj[2] += q2[l%qn][l//qn]
-          # Vector connecting the quadrature points
-          difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
-          r = np.linalg.norm(difvec)
-          tmp2 = difvec / r # Unit direction vector
-          cos_i = abs(tmp2[0])
-          cos_j = abs(tmp2[1])
-          # Evaluate integrand
-          intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
-          
-      # Calculate element of F
-      viewfactor = qw * sum(sum(intgndmat)) / d**2
-      F[i, 4 * n**2 + j] = viewfactor  
-
 print("Geometric view factors left->back done (4/15)")
-
-# From the front wall (j) to the back wall (i)
-for i in range(0, n*n):
-  for j in range(0, n*n):
-    # Centerpoint of the current pixel in the back wall
-    pi = [Xmat[i, 0], Ymat[i, 0], Zmat[i, 0]]
-    # Centerpoint of the current pixel in the front wall
-    pj = [Xmat[j, 5], Ymat[j, 5], Zmat[j, 5]]
-    # Distance between the points
-    difvec0 = [i-j for i, j in zip(pi, pj)]
-    r0 = np.linalg.norm(difvec0)
-
-    # Check if the two pixels share an edge
-    if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
-      # Calculate element of F analytically
-      F[i, 5 * n**2 + j] = shared_edge_F
-    else: # Edge not shared: integrate for F using quadrature
-      # Initalize matrix of integrand values at quadrature points
-      intgndmat = np.zeros((qn**2, qn**2))
-      # Double loop over four-dimensional quadrature
-      for k in range(0, qn**2):
-        for l in range(0, qn**2):
-          # Quadrature point in the back wall pixel
-          qpi = pi[:]
-          qpi[0] += q1[k%qn][k//qn]
-          qpi[2] += q2[k%qn][k//qn]
-          # Quadrature point in the front wall pixel
-          qpj = pj[:]
-          qpj[0] += q1[l%qn][l//qn]
-          qpj[2] += q2[l%qn][l//qn]
-          # Vector connecting the quadrature points
-          difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
-          r = np.linalg.norm(difvec)
-          tmp2 = difvec / r # Unit direction vector
-          cos_i = abs(tmp2[1])
-          cos_j = abs(tmp2[1])
-          # Evaluate integrand
-          intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
-          
-      # Calculate element of F
-      viewfactor = qw * sum(sum(intgndmat)) / d**2
-      F[i, 5 * n**2 + j] = viewfactor  
-
 print("Geometric view factors front->back done (5/15)")
 
 ####################################
