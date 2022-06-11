@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse.linalg as spla
 import scipy.stats
 import time
+import sys
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D, axes3d
@@ -11,7 +12,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 np.set_printoptions(precision=4, suppress=True)
 
 # Mosaic resolution
-n = 5
+n = 2
 
 # Integration quadrature parameter
 qn = 3
@@ -62,6 +63,53 @@ Xmat[:,5] = np.concatenate(np.transpose(X)).flat
 Zmat[:,5] = np.concatenate(np.transpose(Z)).flat
 Ymat[:,5] = -np.ones(n**2)
 
+# Adjust the dark shades. Colors darker than the threshold will become
+# black, so increasing the threshold will darken the image. 
+threshold = 0.05
+
+# Sigmoid correction for optimal gray levels. Increasing betapar1 will
+# darken the image, especially the shadows. Increasing betapar2 will
+# lighten the image, especially highlights. 
+betapar1 = 5
+betapar2 = 20
+
+# Construct the color vector (B-vector) using the radiosity lighting model.
+
+# Construct the right hand side Evec of the radiosity equation. Evec
+# describes the contribution of emitted light in the scene. For example,
+# each pixel belonging to a lamp in the virtual space causes a positive
+# element in Evec.
+Evec = np.zeros((6 * n**2, 1))
+indvec = np.tile(0, len(Evec))
+np.power(Xmat[:,1]-0.3, 2)
+tempXmat = np.power(Xmat[:,1]-0.3, 2)
+tempYMat = np.power(Ymat[:,1], 2)
+val = np.sqrt(tempXmat + tempYMat)
+
+# Ceiling lamp
+#for i in range(0, n**2):
+ # indvec[n**2 + i] = val[i] < 0.3
+
+#for i in range(0, len(indvec)):
+ # if indvec[i]:
+  #  Evec[i] = 1
+
+# Ceiling lamp
+indvec[7] = 1
+
+for i in range(0, len(indvec)):
+  if indvec[i]:
+    Evec[i] = 1
+
+print("Right-hand-side constructed")
+
+# The parameter rho adjusts the surface material (how much incoming light
+# is reflected away from a patch, 0<rho<=1)
+rho = 0.9 * np.ones((6 * n**2, 1))
+for i in range(0, n**2):
+  rho[n**2 + i] = 1 # Bright ceiling
+  rho[2 * n**2 + i] = 0.7; # Dark floor
+
 # Formula for view factor between square-shaped pixels sharing an edge.
 # From Cohen & Wallace: Radiosity and realistic image synthesis
 # (Academic Press Professional 1993), Figure 4.4
@@ -82,165 +130,136 @@ F = np.zeros((6*n**2, 6*n**2))
 
 epsilon = 10 ** -8
 
-start = time.time()
+# Radiosity vector
+B = [0] * 6 * n**2
 
-# Calculate the view factors
-for e1 in range(6):
-    for e2 in range(e1, 6):
+for ii in range(7,8):
+    for jj in range(0, 6 * n**2):
+        e1 = ii//4
+        e2 = jj//4
+
         if e1 == e2:
             continue
 
-        cos_i_idx = None
-        cos_j_idx = None
-        for i in range(0, n*n):
-            for j in range(0, n*n):
-                # Centerpoint of the current pixel in the back wall
-                pi = [Xmat[i, e1], Ymat[i, e1], Zmat[i, e1]]
-                # Centerpoint of the current pixel in the other
-                pj = [Xmat[j, e2], Ymat[j, e2], Zmat[j, e2]]
-                # Distance between the points
-                difvec0 = [i-j for i, j in zip(pi, pj)]
-                r0 = np.linalg.norm(difvec0)
+        i = ii % 4
+        j = jj % 4
 
-                # Check if the two pixels share an edge
-                if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
-                    # Calculate element of F analytically
-                    F[e1 * n**2 + i, e2 * n**2 + j] = shared_edge_F
-                else: # Edge not shared: integrate for F using quadrature
-                    # Initalize matrix of integrand values at quadrature points
-                    intgndmat = np.zeros((qn**2, qn**2))
-                    # Double loop over four-dimensional quadrature
-                    for k in range(0, qn**2):
-                        for l in range(0, qn**2):
-                            # Quadrature point in the back wall pixel
-                            qpi = pi[:]
-                            # Roof (1) & floor (2), z constant, indices 0 and 1
-                            # Left wall (3) & right wall (4), x constant, indices 1 and 2
-                            # Front (5) & back (0), y constant, indices 0 and 2
-                            i11 = 0
-                            i12 = 1
-                            if e1 > 2 and e1 < 5:
-                                i11 = 1
-                                i12 = 2
-                            if e1 > 4 or e1 < 1:
-                                i12 = 2
-                            qpi[i11] += q1[k%qn][k//qn]
-                            qpi[i12] += q2[k%qn][k//qn]
-                            # Quadrature point in the other pixel
-                            qpj = pj[:]
-                            i1 = 0
-                            i2 = 1
-                            if e2 > 2 and e2 < 5:
-                                i1 = 1
-                                i2 = 2
-                            if e2 > 4:
-                                i2 = 2
-                            qpj[i1] += q1[l%qn][l//qn]
-                            qpj[i2] += q2[l%qn][l//qn]
-                            # Vector connecting the quadrature points
-                            difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
-                            r = np.linalg.norm(difvec)
-                            tmp2 = difvec / r # Unit direction vector
-                            # Pick the correct angles
-                            if cos_i_idx is None and cos_j_idx is None:
-                                if tmp2[0] == 0:
-                                    if tmp2[1] == 0:
-                                        cos_i_idx = 2
-                                        cos_j_idx = 2
-                                    else:
-                                        cos_i_idx = 1
-                                        if tmp2[2] == 0:
-                                            cos_j_idx = 1
-                                        else:
-                                            cos_j_idx = 2
-                                elif tmp2[1] == 0:
-                                    cos_i_idx = 0
-                                    if tmp2[2] == 0:
-                                        cos_j_idx = 0
-                                    else:
-                                        cos_j_idx = 2
-                                elif tmp2[2] == 0:
-                                    cos_i_idx = 0
-                                    cos_j_idx = 1
-                                else:
-                                    cos_i_idx = 0
-                                    cos_j_idx = 1
-                            cos_i = abs(tmp2[cos_i_idx])
-                            cos_j = abs(tmp2[cos_j_idx])
-                            # Evaluate integrand
-                            intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
+        # Centerpoint of the current pixel
+        pi = [Xmat[i, e1], Ymat[i, e1], Zmat[i, e1]]
+        # Centerpoint of the other pixel
+        pj = [Xmat[j, e2], Ymat[j, e2], Zmat[j, e2]]
+        # Distance between the points
+        difvec0 = [i-j for i, j in zip(pi, pj)]
+        r0 = np.linalg.norm(difvec0)
 
-                    # Calculate element of F
-                    viewfactor = qw * sum(sum(intgndmat)) / d**2
-                    F[e1 * n**2 + i, e2 * n**2 + j] = viewfactor
+        # Check if the two pixels share an edge
+        if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
+            # Calculate element of F analytically
+            F[ii, jj] = shared_edge_F
+            F[jj, ii] = shared_edge_F
+        else: # Edge not shared: integrate for F using quadrature
+            # Initalize matrix of integrand values at quadrature points
+            intgndmat = np.zeros((qn**2, qn**2))
+            # Double loop over four-dimensional quadrature
+            for k in range(0, qn**2):
+                for l in range(0, qn**2):
+                    # Quadrature point in the current pixel
+                    qpi = pi[:]
+                    # Roof (1) & floor (2), z constant, indices 0 and 1
+                    # Left wall (3) & right wall (4), x constant, indices 1 and 2
+                    # Front (5) & back (0), y constant, indices 0 and 2
+                    i11 = 0
+                    i12 = 1
+                    if e1 > 2 and e1 < 5:
+                        i11 = 1
+                        i12 = 2
+                    if e1 > 4 or e1 < 1:
+                        i12 = 2
+                    qpi[i11] += q1[k%qn][k//qn]
+                    qpi[i12] += q2[k%qn][k//qn]
+                    # make normal vectors from qpi and pi
+                    qpi1 = pi[:]
+                    qpi1[i11] += q1[1][0]
+                    qpi1[i12] += q2[1][0]
+                    qpi2 = pi[:]
+                    qpi2[i11] += q1[0][1]
+                    qpi2[i12] += q2[0][1]
+                    vi1 = [pi[i]-qpi1[i] for i in range(0, len(qpi1))]
+                    vi2 = [pi[i]-qpi2[i] for i in range(0, len(qpi2))]
 
-print("Geometric view factors done")
+                    # Quadrature point in the other pixel
+                    qpj = pj[:]
+                    i1 = 0
+                    i2 = 1
+                    if e2 > 2 and e2 < 5:
+                        i1 = 1
+                        i2 = 2
+                    if e2 > 4 or e2 < 1:
+                        i2 = 2
+                    qpj[i1] += q1[l%qn][l//qn]
+                    qpj[i2] += q2[l%qn][l//qn]
 
-end = time.time()
-print("View factors calculated in", end-start, "seconds")
-# Use symmetry to finish the construction of F.
-# F is symmetric since all the pixels in our model have equal size.
+                    # make normal vectors from qpj and pj
+                    qpj1 = pj[:]
+                    qpj1[i1] += q1[1][0]
+                    qpj1[i2] += q2[1][0]
+                    qpj2 = pj[:]
+                    qpj2[i1] += q1[0][1]
+                    qpj2[i2] += q2[0][1]
+                    vj1 = [pj[i]-qpj1[i] for i in range(0, len(qpj1))]
+                    vj2 = [pj[i]-qpj2[i] for i in range(0, len(qpj2))]
 
-F = F + np.transpose(F)
+                    # Vector connecting the quadrature points
+                    difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
+                    r = np.linalg.norm(difvec)
+                    tmp2 = difvec / r # Unit direction vector
+                    # Calculate the angles
+                    ni = np.cross(vi1, vi2)
+                    nj = np.cross(vj1, vj2)
+                    ni = ni / np.linalg.norm(ni)
+                    nj = nj / np.linalg.norm(nj)
+                    cos_i = abs(np.dot(ni, tmp2))
+                    cos_j = abs(np.dot(nj, tmp2))
+                    # Evaluate integrand
+                    intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
+
+            # Calculate element of F
+            viewfactor = qw * sum(sum(intgndmat)) / d**2
+            F[ii, jj] = viewfactor
+            F[jj, ii] = viewfactor
+
+    for j in range(0, 6 * n*n):
+        # Update radiosity of patch j
+        v = F[ii, j]
+        print("shoot", Evec[ii][0], ii, j, v)
+        dRad = rho[j][0] * Evec[ii][0] * v
+        print(dRad, j)
+        B[j] += dRad
+        Evec[j] += dRad
+    
+    Evec[ii] = 0
+
+print(F)
 
 # Check the matrix f, the row sums should all be one
 print("Check values: all should ideally be one")
 print(sum(F))
 
-
-# Adjust the dark shades. Colors darker than the threshold will become
-# black, so increasing the threshold will darken the image. 
-threshold = 0.05
-
-# Sigmoid correction for optimal gray levels. Increasing betapar1 will
-# darken the image, especially the shadows. Increasing betapar2 will
-# lighten the image, especially highlights. 
-betapar1 = 1
-betapar2 = 20
-
-# Construct the color vector (B-vector) using the radiosity lighting model.
-
-# Construct the right hand side Evec of the radiosity equation. Evec
-# describes the contribution of emitted light in the scene. For example,
-# each pixel belonging to a lamp in the virtual space causes a positive
-# element in Evec.
-Evec = np.zeros((6 * n**2, 1))
-indvec = np.tile(0, len(Evec))
-np.power(Xmat[:,1]-0.3, 2)
-tempXmat = np.power(Xmat[:,1]-0.3, 2)
-tempYMat = np.power(Ymat[:,1], 2)
-val = np.sqrt(tempXmat + tempYMat)
-
-# Ceiling lamp
-for i in range(0, n**2):
-  indvec[n**2 + i] = val[i] < 0.3
-
-for i in range(0, len(indvec)):
-  if indvec[i]:
-    Evec[i] = 1
-
-print("Right-hand-side constructed")
-
-# The parameter rho adjusts the surface material (how much incoming light
-# is reflected away from a patch, 0<rho<=1)
-rho = 0.9 * np.ones((6 * n**2, 1))
-for i in range(0, n**2):
-  rho[n**2 + i] = 1 # Bright ceiling
-  rho[2 * n**2 + i] = 0.7; # Dark floor
+print(B)
 
 # Solve for color vector.
-print("Solving radiosity equation...")
-start = time.time()
-colorvec_orig = spla.gmres(np.eye(6 * n**2) - np.tile(rho, [1, 6 * n**2]) * F, Evec)[0]
-end = time.time()
-print("Radiosity equation solved in", end-start, "seconds")
-
+#print("Solving radiosity equation...")
+#start = time.time()
+#colorvec_orig, exit = spla.gmres(np.eye(6 * n**2) - np.tile(rho, [1, 6 * n**2]) * F, Evec)
+#end = time.time()
+#print("Radiosity equation solved in", end-start, "seconds, with ", exit, "iterations")
+#print(colorvec_orig)
 
 # Produce a still image of the scene
 
 # Adjust the dark shades and normalize the values of the color vector 
 # between 0 and 1.
-colorvec = [i - threshold for i in colorvec_orig]
+colorvec = [i - threshold for i in B]
 colorvec = [max(0, i) for i in colorvec]
 colorvec = colorvec / max(colorvec)
 
