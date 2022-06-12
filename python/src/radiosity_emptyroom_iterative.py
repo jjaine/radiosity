@@ -12,7 +12,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 np.set_printoptions(precision=4, suppress=True)
 
 # Mosaic resolution
-n = 2
+n = 5
 
 # Integration quadrature parameter
 qn = 3
@@ -87,15 +87,15 @@ tempYMat = np.power(Ymat[:,1], 2)
 val = np.sqrt(tempXmat + tempYMat)
 
 # Ceiling lamp
-#for i in range(0, n**2):
- # indvec[n**2 + i] = val[i] < 0.3
+for i in range(0, n**2):
+  indvec[n**2 + i] = val[i] < 0.3
 
-#for i in range(0, len(indvec)):
- # if indvec[i]:
-  #  Evec[i] = 1
+for i in range(0, len(indvec)):
+  if indvec[i]:
+    Evec[i] = 1
 
-# Ceiling lamp
-indvec[7] = 1
+# Ceiling lamp for the n=2 room
+#indvec[7] = 1
 
 for i in range(0, len(indvec)):
   if indvec[i]:
@@ -133,16 +133,18 @@ epsilon = 10 ** -8
 # Radiosity vector
 B = [x[0] for x in Evec]
 
+start = time.time()
+
 for ii in range(0, 6 * n**2):
     for jj in range(0, 6 * n**2):
-        e1 = ii//4
-        e2 = jj//4
+        e1 = ii//n**2
+        e2 = jj//n**2
 
         if e1 == e2:
             continue
 
-        i = ii % 4
-        j = jj % 4
+        i = ii % n**2
+        j = jj % n**2
 
         # Centerpoint of the current pixel
         pi = [Xmat[i, e1], Ymat[i, e1], Zmat[i, e1]]
@@ -228,9 +230,16 @@ for ii in range(0, 6 * n**2):
             F[ii, jj] = viewfactor
             F[jj, ii] = viewfactor
 
-for i in range(0, 3):
+end = time.time()
+print("View factors calculated in", end-start, "seconds")
+
+# Check the matrix f, the row sums should all be one
+print("Check values: all should ideally be one")
+print(sum(F))
+
+for i in range(0, 10):
     for ii in range(0, 6 * n**2):
-        for j in range(0, 6 * n*n):
+        for j in range(0, 6 * n**2):
             # Update radiosity of patch j
             v = F[ii, j]
             dRad = rho[j][0] * Evec[ii][0] * v
@@ -238,10 +247,6 @@ for i in range(0, 3):
             Evec[j] += dRad
         
         Evec[ii] = 0
-
-# Check the matrix f, the row sums should all be one
-print("Check values: all should ideally be one")
-print(sum(F))
 
 # Produce a still image of the scene
 
