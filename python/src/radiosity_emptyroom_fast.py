@@ -70,7 +70,7 @@ threshold = 0.05
 # Sigmoid correction for optimal gray levels. Increasing betapar1 will
 # darken the image, especially the shadows. Increasing betapar2 will
 # lighten the image, especially highlights. 
-betapar1 = 5
+betapar1 = 1
 betapar2 = 20
 
 # Construct the color vector (B-vector) using the radiosity lighting model.
@@ -131,9 +131,9 @@ F = np.zeros((6*n**2, 6*n**2))
 epsilon = 10 ** -8
 
 # Radiosity vector
-B = [0] * 6 * n**2
+B = [x[0] for x in Evec]
 
-for ii in range(7,8):
+for ii in range(0, 6 * n**2):
     for jj in range(0, 6 * n**2):
         e1 = ii//4
         e2 = jj//4
@@ -228,32 +228,20 @@ for ii in range(7,8):
             F[ii, jj] = viewfactor
             F[jj, ii] = viewfactor
 
-    for j in range(0, 6 * n*n):
-        # Update radiosity of patch j
-        v = F[ii, j]
-        print("shoot", Evec[ii][0], ii, j, v)
-        dRad = rho[j][0] * Evec[ii][0] * v
-        print(dRad, j)
-        B[j] += dRad
-        Evec[j] += dRad
-    
-    Evec[ii] = 0
-
-print(F)
+for i in range(0, 3):
+    for ii in range(0, 6 * n**2):
+        for j in range(0, 6 * n*n):
+            # Update radiosity of patch j
+            v = F[ii, j]
+            dRad = rho[j][0] * Evec[ii][0] * v
+            B[j] += dRad
+            Evec[j] += dRad
+        
+        Evec[ii] = 0
 
 # Check the matrix f, the row sums should all be one
 print("Check values: all should ideally be one")
 print(sum(F))
-
-print(B)
-
-# Solve for color vector.
-#print("Solving radiosity equation...")
-#start = time.time()
-#colorvec_orig, exit = spla.gmres(np.eye(6 * n**2) - np.tile(rho, [1, 6 * n**2]) * F, Evec)
-#end = time.time()
-#print("Radiosity equation solved in", end-start, "seconds, with ", exit, "iterations")
-#print(colorvec_orig)
 
 # Produce a still image of the scene
 
@@ -267,25 +255,8 @@ colorvec = colorvec / max(colorvec)
 colorvec = scipy.stats.beta.cdf(colorvec, betapar1, betapar2)
 
 
-# Construct color matrix 
-colorvecR = list(colorvec)
-colorvecR[0:n**2] = np.power(colorvecR[0:n**2],0.8) # Back wall
-for i in range(0, n**2):
-  colorvecR[3 * n**2 + i] = np.power(colorvecR[3 * n**2 + i], 1.2) # Right wall
-for i in range(0, n**2):
-  colorvecR[4 * n**2 + i] = np.power(colorvecR[4 * n**2 + i], 1.2) # Left wall
-
-colorvecG = list(colorvec)
-colorvecG[0:n**2] = np.power(colorvecG[0:n**2], 1.4) # Back wall
-
-colorvecB = list(colorvec)
-colorvecB[0:n**2] = np.power(colorvecB[0:n**2], 1.4) # Back wall
-for i in range(0, n**2):
-  colorvecB[3 * n**2 + i] = np.power(colorvecB[3 * n**2 + i], 0.7) # Right wall
-for i in range(0, n**2):
-  colorvecB[4 * n**2 + i] = np.power(colorvecB[4 * n**2 + i], 0.7) # Left wall
-
-colormat = [colorvecR[:], colorvecG[:], colorvecB[:]]
+# Construct color matrix , containing only shades of gray
+colormat = [colorvec[:], colorvec[:], colorvec[:]]
 
 # Create plot
 fig = plt.figure(figsize=(6, 6), dpi=100)
@@ -368,7 +339,7 @@ ax.set_zlim(-1,1)
 
 # Set the view angle
 ax.set_proj_type('persp', 0.25) # Not available in matplotlib < 3.6
-ax.view_init(elev=1, azim=-89)
+ax.view_init(elev=6, azim=-95)
 
 plt.axis('off')
 
