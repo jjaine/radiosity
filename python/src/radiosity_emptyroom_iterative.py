@@ -137,10 +137,10 @@ start = time.time()
 
 for ii in range(0, 6 * n**2):
     for jj in range(0, 6 * n**2):
-        e1 = ii//n**2
-        e2 = jj//n**2
+        e1 = ii // n**2
+        e2 = jj // n**2
 
-        if e1 == e2:
+        if e1 >= e2:
             continue
 
         i = ii % n**2
@@ -162,64 +162,71 @@ for ii in range(0, 6 * n**2):
         else: # Edge not shared: integrate for F using quadrature
             # Initalize matrix of integrand values at quadrature points
             intgndmat = np.zeros((qn**2, qn**2))
+
+            # Roof (1) & floor (2), z constant, indices 0 and 1
+            # Left wall (3) & right wall (4), x constant, indices 1 and 2
+            # Front (5) & back (0), y constant, indices 0 and 2
+
+            # for current pixel
+            i11 = 0
+            i12 = 1
+            if e1 > 2 and e1 < 5:
+                i11 = 1
+                i12 = 2
+            if e1 > 4 or e1 < 1:
+                i12 = 2
+
+            # for other pixel
+            i1 = 0
+            i2 = 1
+            if e2 > 2 and e2 < 5:
+                i1 = 1
+                i2 = 2
+            if e2 > 4 or e2 < 1:
+                i2 = 2
+
+            # make normal vectors from qpi and pi
+            qpi1 = pi[:]
+            qpi1[i11] += q1[1][0]
+            qpi1[i12] += q2[1][0]
+            qpi2 = pi[:]
+            qpi2[i11] += q1[0][1]
+            qpi2[i12] += q2[0][1]
+            vi1 = [pi[i]-qpi1[i] for i in range(0, len(qpi1))]
+            vi2 = [pi[i]-qpi2[i] for i in range(0, len(qpi2))]
+
+            # make normal vectors from qpj and pj
+            qpj1 = pj[:]
+            qpj1[i1] += q1[1][0]
+            qpj1[i2] += q2[1][0]
+            qpj2 = pj[:]
+            qpj2[i1] += q1[0][1]
+            qpj2[i2] += q2[0][1]
+            vj1 = [pj[i]-qpj1[i] for i in range(0, len(qpj1))]
+            vj2 = [pj[i]-qpj2[i] for i in range(0, len(qpj2))]
+            ni = np.cross(vi1, vi2)
+            nj = np.cross(vj1, vj2)
+            ni = ni / np.linalg.norm(ni)
+            nj = nj / np.linalg.norm(nj)
+
             # Double loop over four-dimensional quadrature
             for k in range(0, qn**2):
                 for l in range(0, qn**2):
                     # Quadrature point in the current pixel
                     qpi = pi[:]
-                    # Roof (1) & floor (2), z constant, indices 0 and 1
-                    # Left wall (3) & right wall (4), x constant, indices 1 and 2
-                    # Front (5) & back (0), y constant, indices 0 and 2
-                    i11 = 0
-                    i12 = 1
-                    if e1 > 2 and e1 < 5:
-                        i11 = 1
-                        i12 = 2
-                    if e1 > 4 or e1 < 1:
-                        i12 = 2
                     qpi[i11] += q1[k%qn][k//qn]
                     qpi[i12] += q2[k%qn][k//qn]
-                    # make normal vectors from qpi and pi
-                    qpi1 = pi[:]
-                    qpi1[i11] += q1[1][0]
-                    qpi1[i12] += q2[1][0]
-                    qpi2 = pi[:]
-                    qpi2[i11] += q1[0][1]
-                    qpi2[i12] += q2[0][1]
-                    vi1 = [pi[i]-qpi1[i] for i in range(0, len(qpi1))]
-                    vi2 = [pi[i]-qpi2[i] for i in range(0, len(qpi2))]
 
                     # Quadrature point in the other pixel
                     qpj = pj[:]
-                    i1 = 0
-                    i2 = 1
-                    if e2 > 2 and e2 < 5:
-                        i1 = 1
-                        i2 = 2
-                    if e2 > 4 or e2 < 1:
-                        i2 = 2
                     qpj[i1] += q1[l%qn][l//qn]
                     qpj[i2] += q2[l%qn][l//qn]
-
-                    # make normal vectors from qpj and pj
-                    qpj1 = pj[:]
-                    qpj1[i1] += q1[1][0]
-                    qpj1[i2] += q2[1][0]
-                    qpj2 = pj[:]
-                    qpj2[i1] += q1[0][1]
-                    qpj2[i2] += q2[0][1]
-                    vj1 = [pj[i]-qpj1[i] for i in range(0, len(qpj1))]
-                    vj2 = [pj[i]-qpj2[i] for i in range(0, len(qpj2))]
 
                     # Vector connecting the quadrature points
                     difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
                     r = np.linalg.norm(difvec)
                     tmp2 = difvec / r # Unit direction vector
                     # Calculate the angles
-                    ni = np.cross(vi1, vi2)
-                    nj = np.cross(vj1, vj2)
-                    ni = ni / np.linalg.norm(ni)
-                    nj = nj / np.linalg.norm(nj)
                     cos_i = abs(np.dot(ni, tmp2))
                     cos_j = abs(np.dot(nj, tmp2))
                     # Evaluate integrand
