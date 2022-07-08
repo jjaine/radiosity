@@ -75,7 +75,7 @@ Ymat[:,5] = -np.ones(n**2)
 
 # Adjust the dark shades. Colors darker than the threshold will become
 # black, so increasing the threshold will darken the image. 
-threshold = 0.05
+threshold = 0.005
 
 # Sigmoid correction for optimal gray levels. Increasing betapar1 will
 # darken the image, especially the shadows. Increasing betapar2 will
@@ -264,13 +264,13 @@ while True:
     if newIdx == -1:
         break
 
-    if Evec[newIdx] < 0.01:
+    if Evec[newIdx] < 0.03:
         break
         
     surfaceIdx = newIdx
 
 end = time.time()
-print("View factors calculated in", end-start, "seconds")
+print("Radiosity calculated in", end-start, "seconds")
 
 # Check the matrix f, the row sums should all be one
 print("Check values: all should ideally be one")
