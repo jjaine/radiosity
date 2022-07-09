@@ -91,7 +91,6 @@ betapar2 = 20
 # element in Evec.
 Evec = [0] * (6 * n**2)
 indvec = np.tile(0, len(Evec))
-np.power(Xmat[:,1]-0.3, 2)
 tempXmat = np.power(Xmat[:,1]-0.3, 2)
 tempYMat = np.power(Ymat[:,1], 2)
 val = np.sqrt(tempXmat + tempYMat)
@@ -99,6 +98,11 @@ val = np.sqrt(tempXmat + tempYMat)
 # Ceiling lamp
 for i in range(0, n**2):
   indvec[n**2 + i] = val[i] < 0.3
+
+# Ceiling lamp for comparison with n=2 case
+#for i in range(0, n**2):
+    #if i >= 50 and (i % 10) // 5 > 0:
+        #indvec[n**2 + i] = 1
 
 for i in range(0, len(indvec)):
   if indvec[i]:
@@ -264,7 +268,7 @@ while True:
     if newIdx == -1:
         break
 
-    if Evec[newIdx] < 0.03:
+    if Evec[newIdx] < 1:
         break
         
     surfaceIdx = newIdx
@@ -278,11 +282,24 @@ print(sum(F))
 
 # Produce a still image of the scene
 
+# Add ambient term to radiosity
+# From Cohen et al: A Progressive Refinement Approach to Fast Radiosity Image Generation
+F_approx = 1 / (6 * n**2)
+rho_ave = sum(rho)[0] / (6 * n**2)
+R = 1 / (1-rho_ave)
+ambient = 0
+for dB_i in Evec:
+    ambient += dB_i * F_approx
+
+ambient *= R
+
+B = [b + ambient for b in B]
+
 # Adjust the dark shades and normalize the values of the color vector 
 # between 0 and 1.
 colorvec = [i - threshold for i in B]
 colorvec = [max(0, i) for i in colorvec]
-colorvec = colorvec / max(colorvec)
+colorvec = [i / max(colorvec) for i in colorvec]
 
 # Sigmoid correction for optimal gray levels.
 colorvec = scipy.stats.beta.cdf(colorvec, betapar1, betapar2)

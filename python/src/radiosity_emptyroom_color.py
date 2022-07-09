@@ -46,7 +46,6 @@ betapar2 = 20
 # element in Evec.
 Evec = np.zeros((6 * n**2, 1))
 indvec = np.tile(0, len(Evec))
-np.power(Xmat[:,1]-0.3, 2)
 tempXmat = np.power(Xmat[:,1]-0.3, 2)
 tempYMat = np.power(Ymat[:,1], 2)
 val = np.sqrt(tempXmat + tempYMat)
