@@ -293,7 +293,11 @@ for dB_i in Evec:
 
 ambient *= R
 
-B = [b + ambient for b in B]
+B_amb = B
+for i in range(0, len(B)):
+    B_amb[i] += B[i] * rho[i][0] + ambient
+
+B = B_amb
 
 # Adjust the dark shades and normalize the values of the color vector 
 # between 0 and 1.
