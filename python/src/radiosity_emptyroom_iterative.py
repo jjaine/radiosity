@@ -2,7 +2,7 @@ import numpy as np
 import scipy.sparse.linalg as spla
 import scipy.stats
 import time
-import sys
+import math
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D, axes3d
@@ -33,9 +33,9 @@ d = 2/n
 tmp = [-1-d/2 + i*d for i in range(1,n+1)]
 
 # Centerpoint coordinate matrices
-Xmat = np.zeros((n**2, 6))
-Ymat = np.zeros((n**2, 6))
-Zmat = np.zeros((n**2, 6))
+Xmat = np.zeros((n*n, 6))
+Ymat = np.zeros((n*n, 6))
+Zmat = np.zeros((n*n, 6))
 
 # Construct the centerpoints for all the tiles in all the six walls
 
@@ -43,35 +43,35 @@ Zmat = np.zeros((n**2, 6))
 X, Z = np.meshgrid(tmp, tmp)
 Xmat[:,0] = np.concatenate(np.transpose(X)).flat
 Zmat[:,0] = np.concatenate(np.transpose(Z)).flat
-Ymat[:,0] = np.ones(n**2)
+Ymat[:,0] = np.ones(n*n)
 
 # Roof (1)
 X, Y = np.meshgrid(tmp, tmp)
 Xmat[:,1] = np.concatenate(np.transpose(X)).flat
 Ymat[:,1] = np.concatenate(np.transpose(Y)).flat
-Zmat[:,1] = np.ones(n**2)
+Zmat[:,1] = np.ones(n*n)
 
 # Floor (2)
 Xmat[:,2] = np.concatenate(np.transpose(X)).flat
 Ymat[:,2] = np.concatenate(np.transpose(Y)).flat
-Zmat[:,2] = -np.ones(n**2)
+Zmat[:,2] = -np.ones(n*n)
 
 # Right-hand-side wall (3)
 Y, Z = np.meshgrid(tmp, tmp)
 Ymat[:,3] = np.concatenate(np.transpose(Y)).flat
 Zmat[:,3] = np.concatenate(np.transpose(Z)).flat
-Xmat[:,3] = np.ones(n**2)
+Xmat[:,3] = np.ones(n*n)
 
 # Left-hand-side wall (4)
 Ymat[:,4] = np.concatenate(np.transpose(Y)).flat
 Zmat[:,4] = np.concatenate(np.transpose(Z)).flat
-Xmat[:,4] = -np.ones(n**2)
+Xmat[:,4] = -np.ones(n*n)
 
 # Front wall (5)
 X, Z = np.meshgrid(tmp, tmp)
 Xmat[:,5] = np.concatenate(np.transpose(X)).flat
 Zmat[:,5] = np.concatenate(np.transpose(Z)).flat
-Ymat[:,5] = -np.ones(n**2)
+Ymat[:,5] = -np.ones(n*n)
 
 # Adjust the dark shades. Colors darker than the threshold will become
 # black, so increasing the threshold will darken the image. 
@@ -89,20 +89,20 @@ betapar2 = 20
 # describes the contribution of emitted light in the scene. For example,
 # each pixel belonging to a lamp in the virtual space causes a positive
 # element in Evec.
-Evec = [0] * (6 * n**2)
+Evec = [0] * (6 * n*n)
 indvec = np.tile(0, len(Evec))
 tempXmat = np.power(Xmat[:,1]-0.3, 2)
 tempYMat = np.power(Ymat[:,1], 2)
 val = np.sqrt(tempXmat + tempYMat)
 
 # Ceiling lamp
-for i in range(0, n**2):
-  indvec[n**2 + i] = val[i] < 0.3
+for i in range(0, n*n):
+  indvec[n*n + i] = val[i] < 0.3
 
 # Ceiling lamp for comparison with n=2 case
-#for i in range(0, n**2):
+#for i in range(0, n*n):
     #if i >= 50 and (i % 10) // 5 > 0:
-        #indvec[n**2 + i] = 1
+        #indvec[n*n + i] = 1
 
 for i in range(0, len(indvec)):
   if indvec[i]:
@@ -119,10 +119,10 @@ print("Right-hand-side constructed")
 
 # The parameter rho adjusts the surface material (how much incoming light
 # is reflected away from a patch, 0<rho<=1)
-rho = 0.9 * np.ones((6 * n**2, 1))
-for i in range(0, n**2):
-  rho[n**2 + i] = 1 # Bright ceiling
-  rho[2 * n**2 + i] = 0.7; # Dark floor
+rho = 0.9 * np.ones((6 * n*n, 1))
+for i in range(0, n*n):
+  rho[n*n + i] = 1 # Bright ceiling
+  rho[2 * n*n + i] = 0.7; # Dark floor
 
 # Formula for view factor between square-shaped pixels sharing an edge.
 # From Cohen & Wallace: Radiosity and realistic image synthesis
@@ -140,7 +140,7 @@ qw = (d/qn) ** 4 # Area of quadrature pixel, squared, serves as the weight
 # See http://en.wikipedia.org/wiki/View_factor for details of computation.
 
 # Initialize the matrix
-F = np.zeros((6*n**2, 6*n**2))
+F = np.zeros((6*n*n, 6*n*n))
 
 epsilon = 10 ** -8
 
@@ -153,34 +153,37 @@ start = time.time()
 surfaceIdx = get_max_idx(Evec)
 while True:
     ii = surfaceIdx
-    for jj in range(0, 6 * n**2):
+    for jj in range(0, 6 * n*n):
         # This view factor hasn't been calculated yet
         if F[ii, jj] == 0:
-            e1 = ii // n**2
-            e2 = jj // n**2
+            e1 = ii // (n*n)
+            e2 = jj // (n*n)
 
             if e1 == e2:
                 continue
 
-            i = ii % n**2
-            j = jj % n**2
+            i = ii % (n*n)
+            j = jj % (n*n)
 
             # Centerpoint of the current pixel
-            pi = [Xmat[i, e1], Ymat[i, e1], Zmat[i, e1]]
+            pi = np.array([Xmat[i, e1], Ymat[i, e1], Zmat[i, e1]])
             # Centerpoint of the other pixel
-            pj = [Xmat[j, e2], Ymat[j, e2], Zmat[j, e2]]
+            pj = np.array([Xmat[j, e2], Ymat[j, e2], Zmat[j, e2]])
             # Distance between the points
-            difvec0 = [i-j for i, j in zip(pi, pj)]
-            r0 = np.linalg.norm(difvec0)
+            difvec0 = pi-pj
+            x = difvec0[0]
+            y = difvec0[1]
+            z = difvec0[2]
+            r0 = math.sqrt(x*x + y*y + z*z)
 
             # Check if the two pixels share an edge
-            if r0 < np.sqrt(2) * d/2 + epsilon: # Edge shared
+            if r0 < math.sqrt(2) * d/2 + epsilon: # Edge shared
                 # Calculate element of F analytically
                 F[ii, jj] = shared_edge_F
                 F[jj, ii] = shared_edge_F
             else: # Edge not shared: integrate for F using quadrature
                 # Initalize matrix of integrand values at quadrature points
-                intgndmat = np.zeros((qn**2, qn**2))
+                intgndmat = np.zeros((qn*qn, qn*qn))
 
                 # Roof (1) & floor (2), z constant, indices 0 and 1
                 # Left wall (3) & right wall (4), x constant, indices 1 and 2
@@ -205,51 +208,59 @@ while True:
                     i2 = 2
 
                 # make normal vectors from qpi and pi
-                qpi1 = pi[:]
+                qpi1 = np.copy(pi)
                 qpi1[i11] += q1[1][0]
                 qpi1[i12] += q2[1][0]
-                qpi2 = pi[:]
+                qpi2 = np.copy(pi)
                 qpi2[i11] += q1[0][1]
                 qpi2[i12] += q2[0][1]
-                vi1 = [pi[i]-qpi1[i] for i in range(0, len(qpi1))]
-                vi2 = [pi[i]-qpi2[i] for i in range(0, len(qpi2))]
+                vi1 = pi - qpi1
+                vi2 = pi - qpi2
 
                 # make normal vectors from qpj and pj
-                qpj1 = pj[:]
+                qpj1 = np.copy(pj)
                 qpj1[i1] += q1[1][0]
                 qpj1[i2] += q2[1][0]
-                qpj2 = pj[:]
+                qpj2 = np.copy(pj)
                 qpj2[i1] += q1[0][1]
                 qpj2[i2] += q2[0][1]
-                vj1 = [pj[i]-qpj1[i] for i in range(0, len(qpj1))]
-                vj2 = [pj[i]-qpj2[i] for i in range(0, len(qpj2))]
+                vj1 = pj - qpj1
+                vj2 = pj - qpj2
                 ni = np.cross(vi1, vi2)
                 nj = np.cross(vj1, vj2)
-                ni = ni / np.linalg.norm(ni)
-                nj = nj / np.linalg.norm(nj)
+                x = ni[0]
+                y = ni[1]
+                z = ni[2]
+                ni = ni / math.sqrt(x*x + y*y + z*z)
+                x = nj[0]
+                y = nj[1]
+                z = nj[2]
+                nj = nj / math.sqrt(x*x + y*y + z*z)
 
                 # Double loop over four-dimensional quadrature
-                for k in range(0, qn**2):
-                    for l in range(0, qn**2):
+                for k in range(0, qn*qn):
+                    for l in range(0, qn*qn):
                         # Quadrature point in the current pixel
-                        qpi = pi[:]
+                        qpi = np.copy(pi)
                         qpi[i11] += q1[k%qn][k//qn]
                         qpi[i12] += q2[k%qn][k//qn]
 
                         # Quadrature point in the other pixel
-                        qpj = pj[:]
+                        qpj = np.copy(pj)
                         qpj[i1] += q1[l%qn][l//qn]
                         qpj[i2] += q2[l%qn][l//qn]
 
                         # Vector connecting the quadrature points
-                        difvec = [qpi[i]-qpj[i] for i in range(0, len(qpi))]
-                        r = np.linalg.norm(difvec)
-                        tmp2 = difvec / r # Unit direction vector
+                        difvec = qpi - qpj
+                        x = difvec[0]
+                        y = difvec[1]
+                        z = difvec[2]
+                        r = math.sqrt(x*x + y*y + z*z)
                         # Calculate the angles
-                        cos_i = abs(np.dot(ni, tmp2))
-                        cos_j = abs(np.dot(nj, tmp2))
+                        cos_i = abs((ni[0] * x + ni[1] * y + ni[2] * z) / r)
+                        cos_j = abs((nj[0] * x + nj[1] * y + nj[2] * z) / r)
                         # Evaluate integrand
-                        intgndmat[k, l] = np.dot(cos_i, cos_j) / (np.pi * r**2)
+                        intgndmat[k, l] = (cos_i * cos_j) / (3.1415926 * r**2)
 
                 # Calculate element of F
                 viewfactor = qw * sum(sum(intgndmat)) / d**2
@@ -284,8 +295,8 @@ print(sum(F))
 
 # Add ambient term to radiosity
 # From Cohen et al: A Progressive Refinement Approach to Fast Radiosity Image Generation
-F_approx = 1 / (6 * n**2)
-rho_ave = sum(rho)[0] / (6 * n**2)
+F_approx = 1 / (6 * n*n)
+rho_ave = sum(rho)[0] / (6 * n*n)
 R = 1 / (1-rho_ave)
 ambient = 0
 for dB_i in Evec:
@@ -321,7 +332,7 @@ ax = fig.add_subplot(projection='3d')
 colorind = 0
 
 # The back wall
-for i in range(0, n**2):
+for i in range(0, n*n):
   x = [Xmat[i,0] + d/2, Xmat[i,0] + d/2, Xmat[i,0] - d/2, Xmat[i,0] - d/2]
   y = [Ymat[i,0], Ymat[i,0], Ymat[i,0], Ymat[i,0]]
   z = [Zmat[i,0] - d/2, Zmat[i,0] + d/2, Zmat[i,0] + d/2, Zmat[i,0] - d/2]
@@ -334,7 +345,7 @@ for i in range(0, n**2):
   colorind += 1
 
 # Roof
-for i in range(0, n**2):
+for i in range(0, n*n):
   x = [Xmat[i,1] + d/2, Xmat[i,1] + d/2, Xmat[i,1] - d/2, Xmat[i,1] - d/2]
   y = [Ymat[i,1] - d/2, Ymat[i,1] + d/2, Ymat[i,1] + d/2, Ymat[i,1] - d/2]
   z = [Zmat[i,1], Zmat[i,1], Zmat[i,1], Zmat[i,1]]
@@ -347,7 +358,7 @@ for i in range(0, n**2):
   colorind += 1
 
 # Floor
-for i in range(0, n**2):
+for i in range(0, n*n):
   x = [Xmat[i,2] + d/2, Xmat[i,2] + d/2, Xmat[i,2] - d/2, Xmat[i,2] - d/2]
   y = [Ymat[i,2] - d/2, Ymat[i,2] + d/2, Ymat[i,2] + d/2, Ymat[i,2] - d/2]
   z = [Zmat[i,2], Zmat[i,2], Zmat[i,2], Zmat[i,2]]
@@ -360,7 +371,7 @@ for i in range(0, n**2):
   colorind += 1
 
 # Right-hand-side wall
-for i in range(0, n**2):
+for i in range(0, n*n):
   x = [Xmat[i,3], Xmat[i,3], Xmat[i,3], Xmat[i,3]]
   y = [Ymat[i,3] + d/2, Ymat[i,3] + d/2, Ymat[i,3] - d/2, Ymat[i,3] - d/2]
   z = [Zmat[i,3] - d/2, Zmat[i,3] + d/2, Zmat[i,3] + d/2, Zmat[i,3] - d/2]
@@ -373,7 +384,7 @@ for i in range(0, n**2):
   colorind += 1
 
 # Left-hand-side wall
-for i in range(0, n**2):
+for i in range(0, n*n):
   x = [Xmat[i,4], Xmat[i,4], Xmat[i,4], Xmat[i,4]]
   y = [Ymat[i,4] + d/2, Ymat[i,4] + d/2, Ymat[i,4] - d/2, Ymat[i,4] - d/2]
   z = [Zmat[i,4] - d/2, Zmat[i,4] + d/2, Zmat[i,4] + d/2, Zmat[i,4] - d/2]
