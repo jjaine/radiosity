@@ -279,6 +279,9 @@ while True:
     if newIdx == -1:
         break
 
+    # Check if the limit for unshot radiosity has been reached
+    # < 1 equals to only processing the light sources
+    # smaller quantities will produce more accurate results
     if Evec[newIdx] < 1:
         break
         
@@ -402,7 +405,7 @@ plt.ylim([-1, 1])
 ax.set_zlim(-1,1)
 
 # Set the view angle
-ax.set_proj_type('persp', 0.25) # Not available in matplotlib < 3.6
+#ax.set_proj_type('persp', 0.25) # Not available in matplotlib < 3.6
 ax.view_init(elev=6, azim=-95)
 
 plt.axis('off')

@@ -36,3 +36,7 @@ Then go to the sources folder with `cd python/src` for examples.
 1. Simplest example: empty room.
 
 First run "radiosity_emptyroom.py" with `python3 radiosity_emptyroom.py` to create the geometric form factor matrix F, which will be saved to a file in the subfolder `../data`. Then you can run "radiosity_emptyroom_color.py" with `python3 radiosity_emptyroom_color.py` to create a color image of a lit room. If you want more details (smaller patches), you can make `n` larger in "radiosity_emptyroom.py". Note that too large n value will cause your computer to run out of memory, so it is a good idea to increase n gradually.
+
+2. Iterative version of the empty room.
+
+Run "radiosity_emptyroom_iterative.py" with `python3 radiosity_emptyroom.py` to use the iterative method for solving radiosity. 
